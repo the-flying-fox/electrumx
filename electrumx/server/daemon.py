@@ -476,3 +476,18 @@ class SmartCashDaemon(Daemon):
     async def smartrewards(self, params):
         '''Return smartrewards data.'''
         return await self._send_single('smartrewards', params)
+
+
+class EuroDaemon(Daemon):
+    async def getbestblockhash(self):
+        return await self._send_single('getbestblockhash')
+
+    async def height(self):
+        if hasattr(self, 'best_block_check_object'):
+            header = await self._send_single('getbestblockheader')
+            self.besthash = header['hash']
+            await self.best_block_check_object.best_block_check(self.besthash)
+            self._height = header['height']
+        else:
+            self._height = await self._send_single('getblockcount')
+        return self._height

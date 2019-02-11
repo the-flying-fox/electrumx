@@ -797,3 +797,125 @@ class DeserializerBitcoinDiamondSegWit(DeserializerBitcoinDiamond,
         we process it in the natural serialized order.
         '''
         return self._read_tx_parts()[0]
+
+
+class EuroTx(namedtuple("Tx", "version inputs outputs fee weight validFrom validSpan")):
+    '''Class representing a transaction.'''
+
+    def serialize(self):
+        return b''.join((
+            pack_le_int32(self.version),
+            pack_varint(len(self.inputs)),
+            b''.join(tx_in.serialize() for tx_in in self.inputs),
+            pack_varint(len(self.outputs)),
+            b''.join(tx_out.serialize() for tx_out in self.outputs),
+            pack_le_int64(self.fee),
+            pack_le_uint32(self.weight),
+            pack_le_int64(self.validFrom),
+            pack_le_uint32(self.validSpan),
+        ))
+
+    def serialize_for_txid(self):
+        return b''.join((
+            pack_le_int32(self.version),
+            pack_varint(len(self.inputs)),
+            b''.join(tx_in.serialize_for_txid() for tx_in in self.inputs),
+            pack_varint(len(self.outputs)),
+            b''.join(tx_out.serialize_for_txid() for tx_out in self.outputs),
+            pack_le_int64(self.fee),
+            pack_le_uint32(0),
+            pack_le_int64(self.validFrom),
+            pack_le_uint32(self.validSpan),
+        ))
+
+    def get_txid(self):
+        if self.version < 2:
+            bin = self.serialize()
+        else:
+            bin = self.serialize_for_txid()
+        return double_sha256(bin)
+
+
+class EuroTxInput(namedtuple("TxInput", "prev_hash prev_idx value weight script")):
+    '''Class representing a transaction input.'''
+
+    def __str__(self):
+        script = self.script.hex()
+        prev_hash = hash_to_hex_str(self.prev_hash)
+        return ("Input({}, {:d}, script={}, value={})"
+                .format(prev_hash, self.prev_idx, script, self.value))
+
+    def is_generation(self):
+        '''Test if an input is generation/coinbase like'''
+        return self.prev_idx == MINUS_1 and self.prev_hash == ZERO
+
+    def serialize(self):
+        return b''.join((
+            self.prev_hash,
+            pack_le_uint32(self.prev_idx),
+            pack_le_int64(self.value),
+            pack_le_uint32(self.weight),
+            pack_varbytes(self.script),
+        ))
+
+    def serialize_for_txid(self):
+        return b''.join((
+            self.prev_hash,
+            pack_le_uint32(self.prev_idx),
+            pack_le_int64(self.value),
+            pack_le_uint32(0),
+            pack_varbytes(bytearray()),
+        ))
+
+
+class EuroTxOutput(namedtuple("TxOutput", "value weight pk_script")):
+
+    def serialize(self):
+        return b''.join((
+            pack_le_int64(self.value),
+            pack_le_uint32(self.weight),
+            pack_varbytes(self.pk_script),
+        ))
+
+    def serialize_for_txid(self):
+        return b''.join((
+            pack_le_int64(self.value),
+            pack_le_uint32(0),
+            pack_varbytes(self.pk_script),
+        ))
+
+
+class Eurocoin(Deserializer):
+    def read_tx(self):
+        '''Return a deserialized transaction.'''
+        return EuroTx(
+            self._read_le_int32(),  # version
+            self._read_inputs(),  # inputs
+            self._read_outputs(),  # outputs
+            self._read_le_uint64(),  # fee
+            self._read_le_uint32(),  # weight
+            self._read_le_uint64(),  # validFrom
+            self._read_le_uint32()  # validSpan
+        )
+
+    def _read_input(self):
+        return EuroTxInput(
+            self._read_nbytes(32),  # prev_hash
+            self._read_le_uint32(),  # prev_idx
+            self._read_le_uint64(),  # value
+            self._read_le_uint32(),  # weight
+            self._read_varbytes()  # script
+        )
+
+    def _read_output(self):
+        return EuroTxOutput(
+            self._read_le_int64(),  # value
+            self._read_le_uint32(),  # weight
+            self._read_varbytes(),  # pk_script
+        )
+
+    def read_tx_and_hash(self):
+        '''Return a (deserialized TX, tx_hash) pair.'''
+        tx = self.read_tx()
+        txid = tx.get_txid()
+        return tx, txid

@@ -807,3 +807,15 @@ class LTORBlockProcessor(BlockProcessor):
                     add_touched(cache_value[:-12])
 
         self.tx_count -= len(txs)
+
+
+class EuroBlockProcessor(BlockProcessor):
+    async def _first_caught_up(self):
+        await super()._first_caught_up()
+        self.best_block_hash = await self.daemon.getbestblockhash()
+        self.daemon.best_block_check_object = self
+
+    async def best_block_check(self, besthash):
+        if besthash != self.best_block_hash:
+            self.best_block_hash = besthash
+            await self.reorg_chain()

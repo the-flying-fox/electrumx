@@ -2640,3 +2640,38 @@ class MyriadcoinTestnet(Myriadcoin):
     WIF_BYTE = bytes.fromhex("ef")
     GENESIS_HASH = ('0000017ce2a79c8bddafbbe47c004aa9'
                     '2b20678c354b34085f62b762084b9788')
+
+
+class Eurocoin(Coin):
+    NAME = "Eurocoin"
+    SHORTNAME = "EURO"
+    NET = "mainnet"
+    BASIC_HEADER_SIZE = 208
+    HASH_HEADER_SIZE = 128
+    XPUB_VERBYTES = bytes.fromhex("0488b21e")
+    XPRV_VERBYTES = bytes.fromhex("0488ade4")
+    P2PKH_VERBYTE = bytes.fromhex("87")
+    P2SH_VERBYTES = bytes.fromhex("88")
+    WIF_BYTE = bytes.fromhex("b0")
+    GENESIS_HASH = ('0000758db94744d6cc28e6b0ef71492d'
+                    '0b0b421534ac3481bad5fb76c7380195')
+    DESERIALIZER = lib_tx.Eurocoin
+    TX_COUNT = 314667
+    TX_COUNT_HEIGHT = 215000
+    TX_PER_BLOCK = 2
+    RPC_PORT = 8330
+    REORG_LIMIT = 800
+    PEERS = [
+    ]
+    BLOCK_PROCESSOR = block_proc.EuroBlockProcessor
+    DAEMON = daemon.EuroDaemon
+
+    @classmethod
+    def header_hash(cls, header):
+        '''Given a header return hash'''
+        return double_sha256(header[:cls.HASH_HEADER_SIZE])
+
+    @classmethod
+    def header_prevhash(cls, header):
+        '''Given a header return previous hash'''
+        return header[32:64]
