@@ -12,7 +12,7 @@ import re
 from ipaddress import IPv4Address, IPv6Address
 
 from aiorpcx import Service, ServicePart
-from electrumx.lib.coins import Coin
+from electrumx.lib.coins import BitcoinBase
 from electrumx.lib.env_base import EnvBase
 
 
@@ -43,12 +43,12 @@ class Env(EnvBase):
         self.db_dir = self.required('DB_DIRECTORY')
         self.daemon_url = self.required('DAEMON_URL')
         if coin is not None:
-            assert issubclass(coin, Coin)
+            assert issubclass(coin, BitcoinBase)
             self.coin = coin
         else:
             coin_name = self.required('COIN').strip()
             network = self.default('NET', 'mainnet').strip()
-            self.coin = Coin.lookup_coin_class(coin_name, network)
+            self.coin = BitcoinBase.lookup_coin_class(coin_name, network)
 
         # Peer discovery
 
