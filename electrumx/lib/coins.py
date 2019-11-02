@@ -3287,8 +3287,8 @@ class Eurocoin(Coin):
     GENESIS_HASH = ('0000758db94744d6cc28e6b0ef71492d'
                     '0b0b421534ac3481bad5fb76c7380195')
     DESERIALIZER = lib_tx.Eurocoin
-    TX_COUNT = 314667
-    TX_COUNT_HEIGHT = 215000
+    TX_COUNT = 384498
+    TX_COUNT_HEIGHT = 254800
     TX_PER_BLOCK = 2
     RPC_PORT = 8330
     REORG_LIMIT = 800

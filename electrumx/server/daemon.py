@@ -505,7 +505,7 @@ class ZcoinMtpDaemon(Daemon):
         return [hex_to_bytes(self.strip_mtp_data(block)) for block in blocks]
 
 
-class EuroDaemon(Daemon):
+class EurocoinDaemon(Daemon):
     async def getbestblockhash(self):
         return await self._send_single('getbestblockhash')
 
@@ -513,7 +513,7 @@ class EuroDaemon(Daemon):
         if hasattr(self, 'best_block_check_object'):
             header = await self._send_single('getbestblockheader')
             self.besthash = header['hash']
-            await self.best_block_check_object.best_block_check(self.besthash)
+            await self.best_block_check_object.euro__check_tip(self.besthash)
             self._height = header['height']
         else:
             self._height = await self._send_single('getblockcount')

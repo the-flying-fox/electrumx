@@ -816,13 +816,25 @@ class LTORBlockProcessor(BlockProcessor):
         self.tx_count -= len(txs)
 
 
-class EuroBlockProcessor(BlockProcessor):
+class EurocoinBlockProcessor(BlockProcessor):
+    euro__best_block_hash = None
+
     async def _first_caught_up(self):
         await super()._first_caught_up()
-        self.best_block_hash = await self.daemon.getbestblockhash()
+        self.euro__best_block_hash = await self.daemon.getbestblockhash()
         self.daemon.best_block_check_object = self
 
-    async def best_block_check(self, besthash):
-        if besthash != self.best_block_hash:
-            self.best_block_hash = besthash
-            await self.reorg_chain()
+    async def euro__check_tip(self, besthash):
+        if self.prefetcher.caught_up:
+            if besthash != self.euro__best_block_hash:
+                await self.euro__load_tip(besthash)
+
+    async def euro__load_tip(self, hash):
+        prefetcher = self.prefetcher
+        if prefetcher.refill_event.is_set():
+            await prefetcher.refill_event.wait()
+            self.euro__best_block_hash = hash
+            async with prefetcher.semaphore:
+                blocks = await self.daemon.raw_blocks([hash])
+                prefetcher.blocks.extend(blocks)
+                prefetcher.blocks_event.set()
