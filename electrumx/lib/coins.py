@@ -3325,8 +3325,8 @@ class Eurocoin(Coin):
     REORG_LIMIT = 800
     PEERS = [
     ]
-    BLOCK_PROCESSOR = block_proc.EuroBlockProcessor
-    DAEMON = daemon.EuroDaemon
+    BLOCK_PROCESSOR = block_proc.EurocoinBlockProcessor
+    DAEMON = daemon.EurocoinDaemon
 
     @classmethod
     def header_hash(cls, header):

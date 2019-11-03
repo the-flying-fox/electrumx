@@ -970,7 +970,7 @@ class DeserializerXaya(DeserializerSegWit, DeserializerAuxPow):
         return self._read_nbytes(end - start)
 
 
-class EuroTx(namedtuple("Tx", "version inputs outputs fee weight validFrom validSpan")):
+class EurocoinTx(namedtuple("Tx", "version inputs outputs fee weight validFrom validSpan")):
     '''Class representing a transaction.'''
 
     def serialize(self):
@@ -1007,7 +1007,7 @@ class EuroTx(namedtuple("Tx", "version inputs outputs fee weight validFrom valid
         return double_sha256(bin)
 
 
-class EuroTxInput(namedtuple("TxInput", "prev_hash prev_idx value weight script")):
+class EurocoinTxInput(namedtuple("TxInput", "prev_hash prev_idx value weight script")):
     '''Class representing a transaction input.'''
 
     def __str__(self):
@@ -1039,7 +1039,7 @@ class EuroTxInput(namedtuple("TxInput", "prev_hash prev_idx value weight script"
         ))
 
 
-class EuroTxOutput(namedtuple("TxOutput", "value weight pk_script")):
+class EurocoinTxOutput(namedtuple("TxOutput", "value weight pk_script")):
 
     def serialize(self):
         return b''.join((
@@ -1059,7 +1059,7 @@ class EuroTxOutput(namedtuple("TxOutput", "value weight pk_script")):
 class Eurocoin(Deserializer):
     def read_tx(self):
         '''Return a deserialized transaction.'''
-        return EuroTx(
+        return EurocoinTx(
             self._read_le_int32(),  # version
             self._read_inputs(),  # inputs
             self._read_outputs(),  # outputs
@@ -1070,7 +1070,7 @@ class Eurocoin(Deserializer):
         )
 
     def _read_input(self):
-        return EuroTxInput(
+        return EurocoinTxInput(
             self._read_nbytes(32),  # prev_hash
             self._read_le_uint32(),  # prev_idx
             self._read_le_uint64(),  # value
@@ -1079,7 +1079,7 @@ class Eurocoin(Deserializer):
         )
 
     def _read_output(self):
-        return EuroTxOutput(
+        return EurocoinTxOutput(
             self._read_le_int64(),  # value
             self._read_le_uint32(),  # weight
             self._read_varbytes(),  # pk_script
