@@ -220,7 +220,7 @@ class BlockProcessor(object):
                 self.logger.info(f'processed {len(blocks):,d} block{s} size {blocks_size:.2f} MB '
                                  f'in {time.time() - start:.1f}s')
             if self._caught_up_event.is_set():
-                await self.notifications.on_block(self.touched, self.height)
+                await self.notifications.on_block(self.touched, self.tip, self.height)
             self.touched = set()
         elif hprevs[0] != chain[0]:
             await self.reorg_chain()

@@ -137,6 +137,7 @@ class SessionManager:
         self._merkle_cache = pylru.lrucache(1000)
         self._merkle_lookups = 0
         self._merkle_hits = 0
+        self.notified_tip = None
         self.notified_height = None
         self.hsub_results = None
         self._task_group = TaskGroup()
@@ -350,7 +351,7 @@ class SessionManager:
                            ])
         return result
 
-    async def _refresh_hsub_results(self, height):
+    async def _refresh_hsub_results(self, tip, height):
         '''Refresh the cached header subscription responses to be for height,
         and record that as notified_height.
         '''
@@ -358,6 +359,7 @@ class SessionManager:
         height = min(height, self.db.db_height)
         raw = await self.raw_header(height)
         self.hsub_results = {'hex': raw.hex(), 'height': height}
+        self.notified_tip = tip
         self.notified_height = height
 
     def _session_references(self, items, special_strings):
@@ -598,7 +600,7 @@ class SessionManager:
             for service in self.env.report_services:
                 self.logger.info(f'advertising service {service}')
             # Start notifications; initialize hsub_results
-            await notifications.start(self.db.db_height, self._notify_sessions)
+            await notifications.start(self.db.db_tip, self.db.db_height, self._notify_sessions)
             await self._start_external_servers()
             # Peer discovery should start after the external servers
             # because we connect to ourself
@@ -738,7 +740,7 @@ class SessionManager:
             raise result
         return result, cost
 
-    async def _notify_sessions(self, height, touched):
+    async def _notify_sessions(self, tip, height, touched):
         '''Notify sessions about height changes and touched addresses.'''
         # Invalidate our height-based caches in case of a reorg
         for cache in (self._tx_hashes_cache, self._merkle_cache):
@@ -746,16 +748,16 @@ class SessionManager:
                 if key in cache:
                     del cache[key]
 
-        height_changed = height != self.notified_height
-        if height_changed:
-            await self._refresh_hsub_results(height)
+        data_changed = tip != self.notified_tip or height != self.notified_height
+        if data_changed:
+            await self._refresh_hsub_results(tip, height)
             # Invalidate our history cache for touched hashXs
             cache = self._history_cache
             for hashX in set(cache).intersection(touched):
                 del cache[hashX]
 
         for session in self.sessions:
-            await self._task_group.spawn(session.notify, touched, height_changed)
+            await self._task_group.spawn(session.notify, touched, data_changed)
 
     def _ip_addr_group_name(self, session):
         host = session.remote_address().host
@@ -831,7 +833,7 @@ class SessionBase(RPCSession):
         self.recalc_concurrency()
         self.session_mgr.add_session(self)
 
-    async def notify(self, touched, height_changed):
+    async def notify(self, touched, tip_changed):
         pass
 
     def remote_address_string(self, *, for_log=True):
@@ -877,6 +879,7 @@ class SessionBase(RPCSession):
             handler = None
         method = 'invalid method' if handler is None else request.method
         self.session_mgr._method_counts[method] += 1
+        print (request)
         coro = handler_invocation(handler, request)()
         return await coro
 
@@ -946,16 +949,19 @@ class ElectrumX(SessionBase):
         self.mempool_statuses.pop(hashX, None)
         return self.hashX_subs.pop(hashX, None)
 
-    async def notify(self, touched, height_changed):
+    async def notify(self, touched, tip_changed):
         '''Notify the client about changes to touched addresses (from mempool
         updates or new blocks) and height.
         '''
-        if height_changed and self.subscribe_headers:
-            args = (await self.subscribe_headers_result(), )
+        if tip_changed and self.subscribe_headers:
+            result = await self.subscribe_headers_result()
+            args = (result, )
+            print("NOTIFY: blockchain.headers.subscribe")
+            print(result)
             await self.send_notification('blockchain.headers.subscribe', args)
 
         touched = touched.intersection(self.hashX_subs)
-        if touched or (height_changed and self.mempool_statuses):
+        if touched or (tip_changed and self.mempool_statuses):
             changed = {}
 
             for hashX in touched:
@@ -1445,9 +1451,9 @@ class DashElectrumX(ElectrumX):
             'protx.info': self.protx_info,
         })
 
-    async def notify(self, touched, height_changed):
+    async def notify(self, touched, tip_changed):
         '''Notify the client about changes in masternode list.'''
-        await super().notify(touched, height_changed)
+        await super().notify(touched, tip_changed)
         for mn in self.mns.copy():
             status = await self.daemon_request('masternode_list',
                                                ['status', mn])

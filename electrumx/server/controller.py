@@ -34,40 +34,43 @@ class Notifications(object):
         self._touched_mp = {}
         self._touched_bp = {}
         self._highest_block = -1
+        self._latest_tip = None
 
     async def _maybe_notify(self):
         tmp, tbp = self._touched_mp, self._touched_bp
-        common = set(tmp).intersection(tbp)
-        if common:
-            height = max(common)
-        elif tmp and max(tmp) == self._highest_block:
-            height = self._highest_block
-        else:
-            # Either we are processing a block and waiting for it to
-            # come in, or we have not yet had a mempool update for the
-            # new block height
+        combined = set(tmp).union(tbp)
+        if not combined:
             return
-        touched = tmp.pop(height)
+        height = max(combined)
+        touched = tmp.pop(height) if height in tmp else set()
+        # get rid of old mempool touches
         for old in [h for h in tmp if h <= height]:
             del tmp[old]
+        # add all block touches
         for old in [h for h in tbp if h <= height]:
             touched.update(tbp.pop(old))
-        await self.notify(height, touched)
+        # do we have any?
+        if not touched:
+            return
+        tip = self._latest_tip
+        await self.notify(tip, height, touched)
 
-    async def notify(self, height, touched):
+    async def notify(self, height, tip, touched):
         pass
 
-    async def start(self, height, notify_func):
+    async def start(self, tip, height, notify_func):
+        self._latest_tip = tip
         self._highest_block = height
         self.notify = notify_func
-        await self.notify(height, set())
+        await self.notify(tip, height, set())
 
     async def on_mempool(self, touched, height):
         self._touched_mp[height] = touched
         await self._maybe_notify()
 
-    async def on_block(self, touched, height):
+    async def on_block(self, touched, tip, height):
         self._touched_bp[height] = touched
+        self._latest_tip = tip
         self._highest_block = height
         await self._maybe_notify()
 
