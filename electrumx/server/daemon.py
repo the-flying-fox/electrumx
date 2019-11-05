@@ -250,8 +250,7 @@ class Daemon(object):
     async def relayfee(self):
         '''The minimum fee a low-priority tx must pay in order to be accepted
         to the daemon's memory pool.'''
-        network_info = await self.getnetworkinfo()
-        return network_info['relayfee']
+        return 0.01
 
     async def getrawtransaction(self, hex_hash, verbose=False):
         '''Return the serialized raw transaction with the given hash.'''
